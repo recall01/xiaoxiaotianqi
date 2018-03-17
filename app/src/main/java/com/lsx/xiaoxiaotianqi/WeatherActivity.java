@@ -1,6 +1,7 @@
 package com.lsx.xiaoxiaotianqi;
 
 import android.app.ProgressDialog;
+import android.content.Context;
 import android.content.Intent;
 import android.content.SharedPreferences;
 import android.graphics.Color;
@@ -13,6 +14,7 @@ import android.support.v4.widget.DrawerLayout;
 import android.support.v4.widget.SwipeRefreshLayout;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
+import android.text.TextUtils;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.WindowManager;
@@ -33,7 +35,11 @@ import com.lsx.xiaoxiaotianqi.gson.Weather;
 import com.lsx.xiaoxiaotianqi.service.AutoUpdateService;
 import com.lsx.xiaoxiaotianqi.util.HttpUtil;
 import com.lsx.xiaoxiaotianqi.util.Utility;
+import com.tencent.bugly.Bugly;
+import com.tencent.bugly.crashreport.CrashReport;
 
+import java.io.BufferedReader;
+import java.io.FileReader;
 import java.io.IOException;
 
 import okhttp3.Call;
@@ -79,6 +85,21 @@ public class WeatherActivity extends AppCompatActivity {
         }*/
         getWindow().setFlags(WindowManager.LayoutParams.FLAG_FULLSCREEN,WindowManager.LayoutParams.FLAG_FULLSCREEN);
         setContentView(R.layout.activity_weather);
+
+        Context context = getApplicationContext();
+// 获取当前包名
+        String packageName = context.getPackageName();
+// 获取当前进程名
+        String processName = getProcessName(android.os.Process.myPid());
+// 设置是否为上报进程
+        CrashReport.UserStrategy strategy = new CrashReport.UserStrategy(context);
+        strategy.setUploadProcess(processName == null || processName.equals(packageName));
+// 初始化Bugly
+        //CrashReport.initCrashReport(context, "bb2ff97b64", false, strategy);
+        Bugly.init(getApplicationContext(), "bb2ff97b64", false);
+// 如果通过“AndroidManifest.xml”来配置APP信息，初始化方法如下
+// CrashReport.initCrashReport(context, strategy);
+
         swipeRefresh = findViewById(R.id.swipe_refresh);
         swipeRefresh.setColorSchemeResources(R.color.colorPrimary);
         weatherLayout = findViewById(R.id.weather_layout);
@@ -128,6 +149,35 @@ public class WeatherActivity extends AppCompatActivity {
                 requestWeather(mWeatherId);
             }
         });
+    }
+
+    /**
+     * 获取进程号对应的进程名
+     *
+     * @param pid 进程号
+     * @return 进程名
+     */
+    private static String getProcessName(int pid) {
+        BufferedReader reader = null;
+        try {
+            reader = new BufferedReader(new FileReader("/proc/" + pid + "/cmdline"));
+            String processName = reader.readLine();
+            if (!TextUtils.isEmpty(processName)) {
+                processName = processName.trim();
+            }
+            return processName;
+        } catch (Throwable throwable) {
+            throwable.printStackTrace();
+        } finally {
+            try {
+                if (reader != null) {
+                    reader.close();
+                }
+            } catch (IOException exception) {
+                exception.printStackTrace();
+            }
+        }
+        return null;
     }
 
     public void loadBingPic() {
